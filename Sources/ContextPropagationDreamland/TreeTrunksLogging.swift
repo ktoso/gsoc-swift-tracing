@@ -93,9 +93,9 @@ public struct LogMatcher {
     public let level: Logger.Level
 
     public init(pattern: String) throws {
-        let (q, l) = try Self.parse(pattern)
-        self.query = q
-        self.level = l
+        let (query, level) = try Self.parse(pattern)
+        self.query = query
+        self.level = level
     }
 
     public init(_ query: Selector, level: Logger.Level) {

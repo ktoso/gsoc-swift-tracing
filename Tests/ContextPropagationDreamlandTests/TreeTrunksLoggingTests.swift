@@ -55,6 +55,9 @@ final class TreeTrunksLoggingTests: XCTestCase {
     }
 
     func test_LogMatcher_parsing_metadataQuery_bad() throws {
+        assertThrows(pattern: "[]=debug") // no selectors
+        // TODO: special case []= as "reset"
+        
         assertThrows(pattern: "[x=hello]=") // missing level
         assertThrows(pattern: "[x=hello]=nein") // weird level
 
@@ -63,13 +66,13 @@ final class TreeTrunksLoggingTests: XCTestCase {
     }
 
     @discardableResult
-    private func assertThrows(pattern: String) -> Error {
+    private func assertThrows(pattern: String) -> Error? {
         do {
             print("  Test pattern: \(pattern)")
             let x = try LogMatcher(pattern: pattern)
             let message = "Expected throw, got: \(x)"
             XCTFail(message)
-            fatalError(message)
+            return nil
         } catch {
             return error
         }
