@@ -1,21 +1,85 @@
 import ContextPropagation
-@testable import ContextPropagationDreamland
+import ContextPropagationDreamland
 import XCTest
 import Logging
 
 final class TreeTrunksLoggingTests: XCTestCase {
-    func test_LogMatcher_parsing() throws {
+    func test_LogMatcher_parsing_metadataQuery() throws {
         try assertPattern(
-            pattern: "[x=hello]=debug", 
-            query: LogMatcher.Query.metadataQuery(["x"], "hello"),
+            pattern: "[x=hello]=debug",
+            query: .metadataQuery(["x"], "hello"),
+            level: .debug
+        )
+        try assertPattern(
+            pattern: "[x.nested.key=hello]=debug",
+            query: .metadataQuery(["x", "nested", "key"], "hello"),
+            level: .debug
+        )
+        try assertPattern(
+            pattern: "[x=hello]=d", // shorthand ok
+            query: .metadataQuery(["x"], "hello"),
+            level: .debug
+        )
+    }
+    
+    func test_LogMatcher_parsing_metadataQuery_quoted() throws {
+        try assertPattern(
+            pattern: "['some key'=hello]=debug",
+            query: .metadataQuery(["some key"], "hello"),
+            level: .debug
+        )
+        try assertPattern(
+            pattern: "[\"some key\"=hello]=debug",
+            query: .metadataQuery(["some key"], "hello"),
+            level: .debug
+        )
+
+        try assertPattern(
+            pattern: "[key=\"hello world\"]=debug",
+            query: .metadataQuery(["key"], "hello world"),
+            level: .debug
+        )
+        try assertPattern(
+            pattern: "[\"some key\"=\"hello\"]=debug",
+            query: .metadataQuery(["some key"], "hello"),
+            level: .debug
+        )
+    }
+    
+    func test_LogMatcher_parsing_labelQuery() throws {
+        try assertPattern(
+            pattern: "label=debug", // shorthand ok
+            query: .labelQuery("label"),
             level: .debug
         )
     }
 
-    private func assertPattern(pattern: String, query q: LogMatcher.Query, level l: Logger.Level) throws {
-        let (q, l) = try LogMatcher.parse(pattern)
-        XCTAssertEqual(q, LogMatcher.Query.metadataQuery(["x"], "hello"))
-        XCTAssertEqual(l, Logger.Level.debug)
+    func test_LogMatcher_parsing_metadataQuery_bad() throws {
+        assertThrows(pattern: "[x=hello]=") // missing level
+        assertThrows(pattern: "[x=hello]=nein") // weird level
+
+        assertThrows(pattern: "[=hello]=debug") // empty matcher
+        assertThrows(pattern: "[x=hello,=hello2]=debug") // empty 2nd matcher
+    }
+
+    @discardableResult
+    private func assertThrows(pattern: String) -> Error {
+        do {
+            print("  Test pattern: \(pattern)")
+            let x = try LogMatcher(pattern: pattern)
+            let message = "Expected throw, got: \(x)"
+            XCTFail(message)
+            fatalError(message)
+        } catch {
+            return error
+        }
+    }
+
+    private func assertPattern(pattern: String, query: LogMatcher.Selector, level: Logger.Level) throws {
+        print("  Test pattern: \(pattern)")
+        let matcher = try ContextPropagationDreamland.LogMatcher(pattern: pattern)
+        XCTAssertEqual(matcher.query, query)
+        XCTAssertEqual(matcher.level, level)
     }
 }
 

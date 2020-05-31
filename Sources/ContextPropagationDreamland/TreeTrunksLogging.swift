@@ -78,19 +78,19 @@ public final class TreeTrunksLogging: LogHandler {
     public var logLevel: Logger.Level
 }
 
-public struct LogMatcher {
+// ==== ----------------------------------------------------------------------------------------------------------------
+// MARK: Log Matcher
 
-    public enum Query: Equatable {
-        case messageContains(String)
-        case messagePrefix(String)
+public struct LogMatcher {
+     public typealias MetadataQueryPath = [String]
+
+    public enum Selector: Equatable {
+        case labelQuery(String)
         case metadataQuery(MetadataQueryPath, String)
     }
 
-    public typealias MetadataQueryPath = [String]
-
-    let query: Query
-    let level: Logger.Level
-
+    public let query: Selector
+    public let level: Logger.Level
 
     public init(pattern: String) throws {
         let (q, l) = try Self.parse(pattern)
@@ -98,107 +98,22 @@ public struct LogMatcher {
         self.level = l
     }
 
-    enum QueryPatternError: Error {
-        case illegal
-    }
-
-    /// Examples:
-    /// ```
-    /// [r=/hello]=debug
-    /// ```
-    internal static func parse(_ pattern: String) throws -> (Query, Logger.Level) {
-        func parse0(pattern: String.SubSequence) throws -> (Query, Logger.Level) {
-            var atIdx = pattern.startIndex
-            guard pattern[atIdx] == "[" else {
-                throw QueryPatternError.illegal
-            }
-            atIdx = pattern.index(after: atIdx)
-
-            // TODO; handle quoted names
-            // todo: can be '
-            guard let keyEqualsIndex = pattern.firstIndex(of: "=") else {
-                throw QueryPatternError.illegal
-            }
-            let keyEndIndex = pattern.index(before: keyEqualsIndex)
-            // todo: handle `'`
-            let key = String(pattern[atIdx...keyEndIndex]) // TODO: would be nice to allow sub sequences all the way...
-
-            // ='?value'? (until ] OR ,)
-            // todo: handle '
-            let valueStartIndex = pattern.index(after: keyEqualsIndex)
-            let valueEndSeparatorIndex: String.SubSequence.Index
-            if let totalEndIndex = pattern[valueStartIndex...].firstIndex(of: "]") {
-                valueEndSeparatorIndex = totalEndIndex
-            } else if let matcherEndIndex = pattern[valueStartIndex...].firstIndex(of: ",") {
-                valueEndSeparatorIndex = matcherEndIndex
-            } else {
-                throw QueryPatternError.illegal
-            }
-            // todo: handle end of '
-            let valueEndIndex = pattern[valueStartIndex...].index(before: valueEndSeparatorIndex)
-            let value = String(pattern[valueStartIndex...valueEndIndex])
-
-            // TODO; if last separator was , keep parsing
-            if pattern[valueEndSeparatorIndex] == "," {
-                // keep parsing
-                fatalError("keep parsing not done")
-            } else if pattern[valueEndSeparatorIndex] == "]" {
-                // end of matcher DSL, parse the level
-                let l: Logger.Level
-                let expectedEqualsIndex = pattern.index(after: valueEndSeparatorIndex)
-                guard pattern[expectedEqualsIndex] == "=" else {
-                    throw QueryPatternError.illegal // missing =
-                }
-                switch pattern[pattern.index(after: expectedEqualsIndex)] {
-                case "t":
-                    l = .trace
-                case "d":
-                    l = .debug
-                case "i":
-                    l = .info
-                case "n":
-                    l = .notice
-                case "w":
-                    l = .warning
-                case "e":
-                    l = .error
-                case "c":
-                    l = .critical
-                default:
-                    throw QueryPatternError.illegal // illegal level (!)
-                }
-                let q = Query.metadataQuery([key], value) // TODO; more keys
-                return (q, l)
-            }
-
-            throw QueryPatternError.illegal // todo: reason?
-        }
-
-        return try parse0(pattern: pattern[...])
-    }
-
-    public init(_ query: Query, level: Logger.Level) {
+    public init(_ query: Selector, level: Logger.Level) {
         self.query = query
         self.level = level
     }
 
     func match(message: Logger.Message, metadata: Logger.Metadata?) -> Logger.Level? {
         switch self.query {
-        case .messageContains(let string):
-            return self.matchMessage(contains: string, message: message, metadata: metadata)
-        case .messagePrefix(let string):
-            return self.matchMessage(prefix: string, message: message, metadata: metadata)
+        case .labelQuery(let label):
+            return self.matchLabel(label: label, message: message, metadata: metadata)
         case .metadataQuery(let path, let value):
             return self.matchMetadata(path: path[...], expected: value, metadata: metadata)
         }
     }
 
-    private func matchMessage(contains: String, message: Logger.Message, metadata: Logger.Metadata?) -> Logger.Level? {
-        fatalError("matchMessage(contains:message:metadata:) has not been implemented")
-    }
-
-    private func matchMessage(prefix: String, message: Logger.Message, metadata: Logger.Metadata?) -> Logger.Level? {
-        fatalError("matchMessage(prefix:message:metadata:) has not been implemented")
+    private func matchLabel(label: String, message: Logger.Message, metadata: Logger.Metadata?) -> Logger.Level? {
+        fatalError("matchLabel(label:message:metadata:) has not been implemented")
     }
 
     private func matchMetadata(path: ArraySlice<String>, expected: String, metadata: Logger.Metadata?) -> Logger.Level? {
