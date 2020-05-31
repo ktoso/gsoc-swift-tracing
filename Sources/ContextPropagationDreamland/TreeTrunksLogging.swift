@@ -32,7 +32,7 @@ public final class TreeTrunksLogging: LogHandler {
         l.logLevel = .trace
     }
 
-    public func configure(matcher: LogMatcher) {
+    public func configure(matcher: LogMatcher?) {
         self.logMatcher = matcher
     }
 
@@ -92,10 +92,13 @@ public struct LogMatcher {
     public let query: Selector
     public let level: Logger.Level
 
-    public init(pattern: String) throws {
-        let (query, level) = try Self.parse(pattern)
-        self.query = query
-        self.level = level
+    public init?(pattern: String) throws {
+        if let (query, level) = try Self.parse(pattern) {
+            self.query = query
+            self.level = level
+        } else {
+            return nil
+        }
     }
 
     public init(_ query: Selector, level: Logger.Level) {

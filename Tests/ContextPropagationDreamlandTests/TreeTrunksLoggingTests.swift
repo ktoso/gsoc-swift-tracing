@@ -4,6 +4,17 @@ import XCTest
 import Logging
 
 final class TreeTrunksLoggingTests: XCTestCase {
+    func test_LogMatcher_parsing_metadataQuery_reset() throws {
+        try assertPattern(
+            pattern: "[]=", // exactly the reset pattern
+            query: nil,
+            level: nil
+        )
+        assertThrows(
+            pattern: "[]=debug" // not exactly the reset pattern
+        )
+    }
+    
     func test_LogMatcher_parsing_metadataQuery() throws {
         try assertPattern(
             pattern: "[x=hello]=debug",
@@ -78,11 +89,15 @@ final class TreeTrunksLoggingTests: XCTestCase {
         }
     }
 
-    private func assertPattern(pattern: String, query: LogMatcher.Selector, level: Logger.Level) throws {
+    private func assertPattern(pattern: String, query: LogMatcher.Selector?, level: Logger.Level?) throws {
         print("  Test pattern: \(pattern)")
-        let matcher = try ContextPropagationDreamland.LogMatcher(pattern: pattern)
-        XCTAssertEqual(matcher.query, query)
-        XCTAssertEqual(matcher.level, level)
+        if let matcher = try ContextPropagationDreamland.LogMatcher(pattern: pattern) {
+            XCTAssertEqual(matcher.query, query)
+            XCTAssertEqual(matcher.level, level)
+        } else {
+            XCTAssertEqual(nil, query)
+            XCTAssertEqual(nil, level)
+        }
     }
 }
 

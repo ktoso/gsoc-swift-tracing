@@ -14,14 +14,24 @@ extension LogMatcher {
     /// ```
     /// [r=/hello]=debug
     /// ```
-    internal static func parse(_ pattern: String) throws -> (Selector, Logger.Level) {
-        func parse0(pattern: inout Substring) throws -> (Selector, Logger.Level) {
+    internal static func parse(_ pattern: String) throws -> (Selector, Logger.Level)? {
+        func parse0(pattern: inout Substring) throws -> (Selector, Logger.Level)? {
             var selector: Selector
             switch pattern.first {
             case "[":
                 try Self.readSkipChar(&pattern, "[")
                 let selectors = try Self.readSelectors(&pattern)
                 try Self.readSkipChar(&pattern, "]")
+                
+                // are we the special `[]=` "reset" pattern?
+                if selectors.isEmpty {
+                    try Self.readExpected(&pattern, expect: "=")
+                    if pattern.isEmpty {
+                        return nil
+                    } else {
+                        throw LogMatcherDSLError.illegal(pattern, reason: "No selectors found in pattern!")
+                    }
+                }
                 selector = selectors.first! // TODO: Allow more of them
 
             default:
@@ -35,6 +45,11 @@ extension LogMatcher {
             return (selector, level)
         }
 
+        guard pattern != "[]=" else {
+            // "reset" pattern
+            return nil
+        }
+        
         var patternSubstring = pattern[...]
         return try parse0(pattern: &patternSubstring)
     }
@@ -52,8 +67,6 @@ extension LogMatcher {
             guard value != "" else {
                 throw LogMatcherDSLError.illegal(pattern, reason: "Empty value in selector! Key: \(key), value: \(value)")
             }
-            print("key = \(key)")
-            print("value = \(value)")
             // each selector key is a "path" separated by `.`, those are used to index into the metadata dictionary
             let keyElements: [String] = key.split(separator: ".").map { String($0) }
             matchers.append(.metadataQuery(keyElements, value))
@@ -85,14 +98,12 @@ extension LogMatcher {
 
         do {
             label = try Self.readLabel(&pattern)
-            print("label = \(label)")
         } catch {
             throw LogMatcherDSLError.illegal(pattern, reason: "Failed parsing label, error: \(error)")
         }
         try Self.readSkipChar(&pattern, "=")
         do {
             value = try Self.readValue(&pattern)
-            print("value = \(value)")
         } catch {
             throw LogMatcherDSLError.illegal(pattern, reason: "Failed parsing value, error: \(error)")
         }
@@ -136,7 +147,6 @@ extension LogMatcher {
                 throw LogMatcherDSLError.illegal(pattern, reason: "Could not read until next \(until)")
             }
             defer { pattern = pattern[exists...] }
-            print("pattern = \(pattern) until '\(until)'")
             // TODO range error handling
             return "\(pattern[..<exists])"
         } else {
@@ -171,7 +181,7 @@ extension LogMatcher {
 
     static func tryReadQuote(_ pattern: inout Substring) throws -> Character? {
         guard let char = pattern.first else {
-           throw LogMatcherDSLError.illegal(pattern, reason: "Attempt to read quote past last index")
+           return nil
         }
 
         switch char {

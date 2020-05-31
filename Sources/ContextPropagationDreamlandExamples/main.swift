@@ -27,12 +27,20 @@ handleThings(log: log)
 
 print("// ==== ----------------------------------------------------------------------------------------------------------------")
 print("// configure: [r=/path]=warning")
-
-//treeTrunks.configure(matcher:
-//    .init(.metadataQuery(["r"], "/path"), level: .warning)
-//)
-try treeTrunks.configure("['r'='/path']=warning")
+try treeTrunks.configure("[r=/path]=warning")
 
 handleThings(log: log)
 // logs:
-// 2020-05-30T12:31:57+0900 info: x=value Hello
+// 2020-05-31T17:15:12+0900 info: x=value Hello
+// 2020-05-31T17:15:12+0900 warning: x=value r=/path Started processing path
+// 2020-05-31T17:15:12+0900 warning: r=/path x=value Replying to path
+
+print("// ==== ----------------------------------------------------------------------------------------------------------------")
+print("// configure: []=") // reset
+try treeTrunks.configure("[]=")
+
+handleThings(log: log)
+// logs:
+// 2020-05-31T17:15:12+0900 info: x=value Hello
+// 2020-05-31T17:15:12+0900 warning: x=value r=/path Started processing path
+// 2020-05-31T17:15:12+0900 warning: r=/path x=value Replying to path
