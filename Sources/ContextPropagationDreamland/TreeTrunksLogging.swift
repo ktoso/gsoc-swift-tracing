@@ -18,18 +18,29 @@ public final class TreeTrunksLogging: LogHandler {
         }
     }
 
-    let baseLogLevel: Logger.Level
-
     let underlying: LogHandler
+    public var logLevel: Logger.Level {
+        get {
+            .trace
+        }
+        set {
+            // ignore
+        }
+    }
+    let passThroughLogLevel: Logger.Level
+    
 
     public init(wrap logHandler: LogHandler) {
         self.lock = NSLock()
         self._logMatcher = nil
-        self.underlying = logHandler
+        
+        
         var l = logHandler
-        self.baseLogLevel = logHandler.logLevel
-        self.logLevel = .info
-        l.logLevel = .trace
+        l.logLevel = .trace // if we decide it should log, it should do so
+        self.underlying = l
+        
+        self.passThroughLogLevel = logHandler.logLevel
+        
     }
 
     public func configure(matcher: LogMatcher) {
@@ -46,36 +57,27 @@ public final class TreeTrunksLogging: LogHandler {
         metadata: Logger.Metadata?,
         file: String, function: String, line: UInt
     ) {
-        guard let matcher = self.logMatcher else {
-            if self.baseLogLevel <= level {
-                // pass through
-                self.underlying
-                    .log(level: level, message: message, metadata: metadata, file: file, function: function, line: line)
-            } // else, ignore
-            return
-        }
-
-        guard let matcherSelectedLevel = matcher.match(message: message, metadata: metadata) else {
-            if self.baseLogLevel <= level {
-                self.underlying
-                    .log(level: level, message: message, metadata: metadata, file: file, function: function, line: line)
-            } // else, ignore
-            return
-        }
-
-        self.underlying
-            .log(level: matcherSelectedLevel, message: message, metadata: metadata, file: file, function: function, line: line)
+        if let matcher = self.logMatcher,
+           let matchedAsLevel = matcher.match(message: message, metadata: metadata) {
+            // matcher decided we should lot it on specific level
+            self.underlying
+                .log(level: matchedAsLevel, message: message, metadata: metadata, file: file, function: function, line: line)
+        } else if self.logLevel <= level {
+            // pass through as-is
+            self.underlying
+                .log(level: level, message: message, metadata: metadata, file: file, function: function, line: line)
+        } // else, ignore
     }
 
-    public subscript(metadataKey _: String) -> Logger.Metadata.Value? { // FIXME wat!!!! why the `_`
+    public subscript(metadataKey key: String) -> Logger.Metadata.Value? { // FIXME wat!!!! why the `_`
         get {
-            fatalError("subscript(metadataKey:) has not been implemented")
+            fatalError("subscript(metadataKey:\(key) has not been implemented")
         }
         set {
         }
     }
     public var metadata: Logger.Metadata = [:]
-    public var logLevel: Logger.Level
+
 }
 
 public struct LogMatcher {
