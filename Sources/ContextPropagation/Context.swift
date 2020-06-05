@@ -22,7 +22,7 @@ public struct Context {
     private struct ValueContainer {
         let value: Any
 
-        func forceUnwrap<Key: ContextKey>(_ key: Key.Type) -> Key.Value {
+        func forceUnwrap<Key: ContextKey>(_: Key.Type) -> Key.Value {
             value as! Key.Value
         }
     }
