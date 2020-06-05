@@ -18,6 +18,10 @@ public struct InstrumentationMiddleware<InjectInto, ExtractFrom>: Instrumentatio
         self.inject = inject
     }
 
+    public init<M: InstrumentationMiddlewareProtocol>(_ middleware: M) where M.InjectInto == InjectInto, M.ExtractFrom == ExtractFrom {
+        self = .init(extract: middleware.extract, inject: middleware.inject)
+    }
+
     public func extract(from: ExtractFrom, into context: inout Context) {
         self.extract(from, &context)
     }
