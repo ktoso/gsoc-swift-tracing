@@ -1,8 +1,12 @@
 public struct MultiplexInstrumentationMiddleware<InjectInto, ExtractFrom> {
     private var middleware: [InstrumentationMiddleware<InjectInto, ExtractFrom>]
 
-    public init(_ middleware: [InstrumentationMiddleware<InjectInto, ExtractFrom>]) {
-        self.middleware = middleware
+//    public init(_ middleware: [InstrumentationMiddleware<InjectInto, ExtractFrom>]) {
+//        self.middleware = middleware
+//    }
+
+    public init<M: InstrumentationMiddlewareProtocol>(_ middleware: [M]) where M.InjectInto == InjectInto, M.ExtractFrom == ExtractFrom {
+        self.middleware = middleware.map(InstrumentationMiddleware.init)
     }
 }
 
