@@ -2,11 +2,10 @@ import ContextPropagation
 
 // MARK: - Demo
 
-let server = FakeHTTPServer(
-    instrumentationMiddleware: MultiplexInstrumentationMiddleware([
-        InstrumentationMiddleware(FakeTracer.Middleware(tracer: FakeTracer()))
-    ])
-) { context, request, client -> FakeHTTPResponse in
+let server = FakeHTTPServer(instrumentationMiddleware: MultiplexInstrumentationMiddleware([
+    InstrumentationMiddleware(FakeTracer.Middleware(tracer: FakeTracer())),
+    InstrumentationMiddleware(SecondFakeTracer.Middleware(tracer: SecondFakeTracer()))
+])) { context, request, client -> FakeHTTPResponse in
     print("=== Perform subsequent request ===")
     let outgoingRequest = FakeHTTPRequest(path: "/other-service", headers: [("Content-Type", "application/json")])
     client.performRequest(context, request: outgoingRequest)
@@ -101,5 +100,35 @@ private struct FakeTracer {
         typealias Value = String
 
         static let headerName = "fake-trace-id"
+    }
+}
+
+private struct SecondFakeTracer {
+    func generateTraceID() -> String {
+        "4g32fg3ae2ve1b32dd84ec1452694134"
+    }
+
+    struct Middleware: InstrumentationMiddlewareProtocol {
+        private let tracer: SecondFakeTracer
+
+        init(tracer: SecondFakeTracer) {
+            self.tracer = tracer
+        }
+
+        func extract(from headers: HTTPHeaders, into context: inout Context) {
+            let traceID = headers.first(where: { $0.0 == FakeTraceID.headerName })?.1 ?? tracer.generateTraceID()
+            context.inject(FakeTraceID.self, value: traceID)
+        }
+
+        func inject(from context: Context, into headers: inout HTTPHeaders) {
+            guard let traceID = context.extract(FakeTraceID.self) else { return }
+            headers.append((FakeTraceID.headerName, traceID))
+        }
+    }
+
+    private enum FakeTraceID: ContextKey {
+        typealias Value = String
+
+        static let headerName = "second-fake-trace-id"
     }
 }
